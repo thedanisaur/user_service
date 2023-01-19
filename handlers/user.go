@@ -56,7 +56,7 @@ func GetUser(c *fiber.Ctx) error {
 	}
 	username := c.Params("username")
 	database := db.GetInstance()
-	query_string := fmt.Sprintf("SELECT BIN_TO_UUID(person_id) person_id, person_username, person_password, person_email, person_created_on FROM people WHERE person_username = \"%s\"", username)
+	query_string := fmt.Sprintf("SELECT BIN_TO_UUID(person_id) person_id, person_username, person_password, person_email, person_created_on FROM people WHERE person_username = LOWER(\"%s\")", username)
 	row := database.QueryRow(query_string)
 	var user types.User
 	err := row.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedOn)
