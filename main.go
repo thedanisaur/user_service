@@ -1,18 +1,26 @@
 package main
 
 import (
-	"net/http"
 	"log"
-	"user_auth/handlers"
-	"user_auth/db"
+	"user_service/db"
+	"user_service/handlers"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func main() {
+	log.Println("Starting User Auth...")
+	app := fiber.New()
 	defer db.GetInstance().Close()
-	http.HandleFunc(handlers.UserRoute(), handlers.UserHandler)
-	err := http.ListenAndServe(":4321", nil)
-	if err != nil {
-		log.Fatal("Error starting http server:", err)
-		return
-	}
+
+	// Basic Authentication
+	app.Post("/login", handlers.Login)
+
+	// JWT Authentication
+	app.Post("/refresh/:username", handlers.RefreshToken)
+	app.Get("/users", handlers.GetUsers)
+	app.Get("/user/:username", handlers.GetUser)
+	app.Post("/user", handlers.CreateUser)
+
+	app.Listen(":4321")
 }

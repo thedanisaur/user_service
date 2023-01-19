@@ -1,78 +1,105 @@
 package handlers
 
 import (
-    _ "github.com/go-sql-driver/mysql"
-	"encoding/json"
-	"net/http"
 	"fmt"
-	"user_auth/types"
-	"user_auth/db"
+	"log"
+	"user_service/db"
+	"user_service/security"
+	"user_service/types"
+
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
-func UserRoute() string {
-	return "/users"
-}
-
-func UserHandler(writer http.ResponseWriter, request *http.Request) {
-	// txid := uuid.New()
-	txid := types.UUID{ID: "1234567"}
-	fmt.Printf("UserHandler | %s\n", txid.String())
-	switch request.Method {
-	case "GET":
-		result := userGet()
-		if result == nil {
-			msg := fmt.Sprintf("%s %s failed: %s", request.Method, UserRoute(), txid.String())
-			err := types.Error{Msg: msg}
-			json.NewEncoder(writer).Encode(err)
-		} else {
-			json.NewEncoder(writer).Encode(result)
-		}
-	case "POST":
-		result := userPost()
-		// if result == nil {
-		// 	msg := fmt.Sprintf("%s %s failed: %s", request.Method, UserRoute(), txid.String())
-		// 	err := types.Error{Msg: msg}
-		// 	json.NewEncoder(writer).Encode(err)
-		// } else {
-		json.NewEncoder(writer).Encode(result)
-		// }
-	default:
-		msg := fmt.Sprintf("%s %s unavailable: %s", request.Method, UserRoute(), txid.String())
-		result := types.Error{Msg: msg}
-		json.NewEncoder(writer).Encode(result)
+func CreateUser(c *fiber.Ctx) error {
+	txid := uuid.New()
+	log.Printf("CreateUser | %s\n", txid.String())
+	if security.ValidateJWT(c) != nil {
+		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
 	}
+	var user types.User
+	err := c.BodyParser(&user)
+	if err != nil {
+		log.Printf("Failed to parse user data\n%s\n", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(fmt.Sprintf("Failed to parse user data: %s\n", txid.String()))
+	}
+	hashed_password, err := bcrypt.GenerateFromPassword([]byte(user.Password), 12)
+	if err != nil {
+		log.Printf("Failed to hash password\n%s\n", err.Error())
+		err_string := fmt.Sprintf("Internal Server Error: %s\n", txid.String())
+		return c.Status(fiber.StatusInternalServerError).SendString(err_string)
+	}
+	database := db.GetInstance()
+	query_string := "INSERT INTO people (person_username, person_password, person_email, person_created_on) VALUES (?, ?, ?, ?)"
+	result, err := database.Exec(query_string, user.Username, hashed_password, user.Email, user.CreatedOn)
+	if err != nil {
+		log.Printf("Failed user insert\n%s\n", err.Error())
+		err_string := fmt.Sprintf("Database Error: %s\n", txid.String())
+		return c.Status(fiber.StatusServiceUnavailable).SendString(err_string)
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		log.Printf("Failed retreive inserted id\n%s\n", err.Error())
+		err_string := fmt.Sprintf("Database Error: %s\n", txid.String())
+		return c.Status(fiber.StatusServiceUnavailable).SendString(err_string)
+	}
+	return c.Status(fiber.StatusOK).JSON(id)
 }
 
-func userGet() []types.User {
-	fmt.Println("userGet")
+func GetUser(c *fiber.Ctx) error {
+	txid := uuid.New()
+	log.Printf("GetUser | %s\n", txid.String())
+	if security.ValidateJWT(c) != nil {
+		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
+	}
+	username := c.Params("username")
 	database := db.GetInstance()
-	// Execute the query
-	rows, err := database.Query("SELECT BIN_TO_UUID(person_id) person_id, person_username, person_password, person_email FROM people")
+	query_string := fmt.Sprintf("SELECT BIN_TO_UUID(person_id) person_id, person_username, person_password, person_email, person_created_on FROM people WHERE person_username = \"%s\"", username)
+	row := database.QueryRow(query_string)
+	var user types.User
+	err := row.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedOn)
 	if err != nil {
-		fmt.Printf("Failed to query databse\n%s\n", err.Error())
-		return nil
+		log.Printf("Database error\n%s\n", err.Error())
+		err_string := fmt.Sprintf("Database Error: %s\n", txid.String())
+		return c.Status(fiber.StatusServiceUnavailable).SendString(err_string)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(user)
+}
+
+func GetUsers(c *fiber.Ctx) error {
+	txid := uuid.New()
+	log.Printf("GetUsers | %s\n", txid.String())
+	if security.ValidateJWT(c) != nil {
+		err_string := fmt.Sprintf("Unauthorized: %s\n", txid.String())
+		return c.Status(fiber.StatusUnauthorized).SendString(err_string)
+	}
+	database := db.GetInstance()
+	rows, err := database.Query("SELECT BIN_TO_UUID(person_id) person_id, person_username, person_password, person_email, person_created_on FROM people")
+	if err != nil {
+		log.Printf("Failed to query databse\n%s\n", err.Error())
+		err_string := fmt.Sprintf("Database Error: %s\n", txid.String())
+		return c.Status(fiber.StatusServiceUnavailable).SendString(err_string)
 	}
 
 	var users []types.User
 	for rows.Next() {
 		var user types.User
-		err = rows.Scan(&user.ID, &user.Username, &user.Password, &user.Email)
+		err = rows.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedOn)
 		if err != nil {
-			fmt.Printf("Failed to scan row\n%s\n", err.Error())
-			return nil
+			log.Printf("Failed to scan row\n%s\n", err.Error())
+			continue
 		}
 		users = append(users, user)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		fmt.Printf("Failed after row scan\n%s\n", err.Error())
-		return nil
+		log.Println("Error scanning rows")
+		err_string := fmt.Sprintf("Internal Server Error: %s\n", txid.String())
+		return c.Status(fiber.StatusInternalServerError).SendString(err_string)
 	}
-
-	return users
-}
-
-func userPost() types.Error {
-	return types.Error{Msg: "POST"}
+	return c.Status(fiber.StatusOK).JSON(users)
 }
