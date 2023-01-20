@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	log.Println("Starting User Auth...")
+	log.Println("Starting User Service...")
 	app := fiber.New()
 	defer db.GetInstance().Close()
 
