@@ -39,8 +39,12 @@ func Login(c *fiber.Ctx) error {
 	username, password, has_auth, err := security.GetBasicAuth(c.Get(fiber.HeaderAuthorization))
 	if has_auth && err == nil {
 		database := db.GetInstance()
-		query_string := fmt.Sprintf("SELECT person_password FROM people WHERE person_username = LOWER(\"%s\")", username)
-		row := database.QueryRow(query_string)
+		query_string := `
+			SELECT person_password
+			FROM people
+			WHERE person_username = LOWER(?)
+		`
+		row := database.QueryRow(query_string, username)
 		var user_password string
 		err := row.Scan(&user_password)
 		if err != nil {

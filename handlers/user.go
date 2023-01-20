@@ -32,7 +32,15 @@ func CreateUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).SendString(err_string)
 	}
 	database := db.GetInstance()
-	query_string := "INSERT INTO people (person_username, person_password, person_email, person_created_on) VALUES (?, ?, ?, ?)"
+	query_string := `
+		INSERT INTO people
+		(
+			person_username
+			, person_password
+			, person_email
+			, person_created_on
+		) VALUES (?, ?, ?, ?)
+	`
 	result, err := database.Exec(query_string, user.Username, hashed_password, user.Email, user.CreatedOn)
 	if err != nil {
 		log.Printf("Failed user insert\n%s\n", err.Error())
@@ -56,12 +64,20 @@ func GetUser(c *fiber.Ctx) error {
 	}
 	username := c.Params("username")
 	database := db.GetInstance()
-	query_string := fmt.Sprintf("SELECT BIN_TO_UUID(person_id) person_id, person_username, person_password, person_email, person_created_on FROM people WHERE person_username = LOWER(\"%s\")", username)
-	row := database.QueryRow(query_string)
+	query_string := `
+		SELECT BIN_TO_UUID(person_id) person_id
+			, person_username
+			, person_password
+			, person_email
+			, person_created_on
+		FROM people
+		WHERE person_username = LOWER(?)
+	`
+	row := database.QueryRow(query_string, username)
 	var user types.User
 	err := row.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedOn)
 	if err != nil {
-		log.Printf("Database error\n%s\n", err.Error())
+		log.Printf("Database Error:\n%s\n", err.Error())
 		err_string := fmt.Sprintf("Database Error: %s\n", txid.String())
 		return c.Status(fiber.StatusServiceUnavailable).SendString(err_string)
 	}
@@ -77,9 +93,17 @@ func GetUsers(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).SendString(err_string)
 	}
 	database := db.GetInstance()
-	rows, err := database.Query("SELECT BIN_TO_UUID(person_id) person_id, person_username, person_password, person_email, person_created_on FROM people")
+	query_string := `
+		SELECT BIN_TO_UUID(person_id) person_id
+			, person_username
+			, person_password
+			, person_email
+			, person_created_on
+		FROM people
+	`
+	rows, err := database.Query(query_string)
 	if err != nil {
-		log.Printf("Failed to query databse\n%s\n", err.Error())
+		log.Printf("Database Error:\n%s\n", err.Error())
 		err_string := fmt.Sprintf("Database Error: %s\n", txid.String())
 		return c.Status(fiber.StatusServiceUnavailable).SendString(err_string)
 	}
