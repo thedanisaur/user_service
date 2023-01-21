@@ -49,7 +49,7 @@ func CreateUser(c *fiber.Ctx) error {
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
-		log.Printf("Failed retreive inserted id\n%s\n", err.Error())
+		log.Printf("Failed retrieve inserted id\n%s\n", err.Error())
 		err_string := fmt.Sprintf("Database Error: %s\n", txid.String())
 		return c.Status(fiber.StatusServiceUnavailable).SendString(err_string)
 	}
