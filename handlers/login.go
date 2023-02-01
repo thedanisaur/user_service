@@ -15,11 +15,11 @@ import (
 func RefreshToken(c *fiber.Ctx) error {
 	txid := uuid.New()
 	log.Printf("RefreshToken: %s\n", txid.String())
+	username := c.Get(fiber.HeaderUserAgent)
 	if security.ValidateJWT(c) != nil {
 		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
 	}
-	username := c.Params("username")
-	token, err := security.GenerateJWT(username)
+	token, err := security.GenerateJWT(txid, username)
 	if err != nil {
 		log.Printf("Error generating jwt: %s\n", err.Error())
 		return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Internal Server Error: %s\n", txid.String()))
@@ -56,7 +56,7 @@ func Login(c *fiber.Ctx) error {
 			log.Printf("Invalid password: %s\n", err.Error())
 			return c.Status(fiber.StatusUnauthorized).SendString(err_string)
 		}
-		token, err := security.GenerateJWT(username)
+		token, err := security.GenerateJWT(txid, username)
 		if err != nil {
 			log.Printf("Error generating jwt: %s\n", err.Error())
 			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Internal Server Error: %s\n", txid.String()))
