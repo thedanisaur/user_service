@@ -2,11 +2,13 @@ package main
 
 import (
 	"log"
+	"time"
 	"user_service/db"
 	"user_service/handlers"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 )
 
 func main() {
@@ -18,6 +20,14 @@ func main() {
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}))
+
+	// Add Rate Limiter
+	app.Use(limiter.New(limiter.Config{
+		Max:                    5,
+		Expiration:             5 * time.Minute,
+		LimiterMiddleware:      limiter.SlidingWindow{},
+		SkipSuccessfulRequests: true,
 	}))
 
 	// Basic Authentication
