@@ -15,7 +15,7 @@ import (
 func RefreshToken(c *fiber.Ctx) error {
 	txid := uuid.New()
 	log.Printf("RefreshToken: %s\n", txid.String())
-	username := c.Get(fiber.HeaderUserAgent)
+	username := c.Get("Username")
 	if security.ValidateJWT(c) != nil {
 		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
 	}
@@ -28,6 +28,21 @@ func RefreshToken(c *fiber.Ctx) error {
 		"txid":     txid.String(),
 		"username": username,
 		"token":    fmt.Sprintf("Bearer %s", token),
+	}
+	return c.Status(fiber.StatusOK).JSON(response)
+}
+
+func Validate(c *fiber.Ctx) error {
+	txid := uuid.New()
+	log.Printf("Validate: %s\n", txid.String())
+	username := c.Get("Username")
+	if security.ValidateJWT(c) != nil {
+		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
+	}
+	response := fiber.Map{
+		"txid":     txid.String(),
+		"username": username,
+		"token":    c.Get(fiber.HeaderAuthorization),
 	}
 	return c.Status(fiber.StatusOK).JSON(response)
 }
