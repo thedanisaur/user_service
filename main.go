@@ -18,8 +18,25 @@ func main() {
 
 	// Add CORS
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "127.0.0.1",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+		AllowOrigins: "https://127.0.0.1:8080, https://localhost:8080, https://127.0.0.1:4321, https://127.0.0.1:1234",
+		// AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+		AllowHeaders: `Accept
+			, Accept-Encoding
+			, Accept-Language
+			, Access-Control-Request-Headers
+			, Access-Control-Request-Method
+			, Connection
+			, Host
+			, Origin
+			, Referer
+			, Sec-Fetch-Dest
+			, Sec-Fetch-Mode
+			, Sec-Fetch-Site
+			, User-Agent
+			, Content-Type
+			, Content-Length
+			, Authorization`,
+		AllowCredentials: true,
 	}))
 
 	// Add Rate Limiter
