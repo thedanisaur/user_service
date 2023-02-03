@@ -3,6 +3,7 @@ package security
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -21,6 +22,7 @@ func GenerateJWT(txid uuid.UUID, username string) (string, error) {
 	claims["iat"] = time.Now().UTC().Unix()
 	claims["exp"] = time.Now().Add(5 * time.Minute).UTC().Unix()
 	claims["iss"] = txid
+	// TODO tie to user agent as well
 	claims["user"] = username
 	// TODO replace the sample key ya dingus
 	signed_token, err := token.SignedString(SIGNING_KEY)
@@ -58,6 +60,42 @@ func GetBasicAuth(auth string) (string, string, bool, error) {
 	return "", "", false, errors.New("Invalid header")
 }
 
+func Logout(c *fiber.Ctx) error {
+	username := c.Get("Username")
+	token, ok := CURRENT_JWTS[username]
+	if !ok {
+		return errors.New(fmt.Sprintf("User not found: %s", username))
+	}
+	log.Printf("User token: %s", token)
+	log.Printf("Sent token: %s", strings.TrimPrefix(c.Get(fiber.HeaderAuthorization), "Bearer "))
+	if token != strings.TrimPrefix(c.Get(fiber.HeaderAuthorization), "Bearer ") {
+		return errors.New("Token sent doesn't match user token")
+	}
+	delete(CURRENT_JWTS, username)
+	return nil
+}
+
+func parseToken(token string) (jwt.MapClaims, error) {
+	token = strings.TrimPrefix(token, "Bearer ")
+	parsed_token, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
+		_, ok := t.Method.(*jwt.SigningMethodHMAC)
+		if !ok {
+			return "", errors.New("Invalid signing method")
+		}
+		return SIGNING_KEY, nil
+	})
+	if err != nil || !parsed_token.Valid {
+		log.Printf(err.Error())
+		return nil, errors.New("Invalid JWT")
+	}
+
+	claims, ok := parsed_token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("Missing Claims")
+	}
+	return claims, nil
+}
+
 func ValidateJWT(c *fiber.Ctx) error {
 	token := c.Get(fiber.HeaderAuthorization)
 	username := c.Get("Username")
@@ -83,25 +121,4 @@ func ValidateJWT(c *fiber.Ctx) error {
 		return errors.New("Invalid credentials")
 	}
 	return nil
-}
-
-func parseToken(token string) (jwt.MapClaims, error) {
-	token = strings.TrimPrefix(token, "Bearer ")
-	parsed_token, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
-		_, ok := t.Method.(*jwt.SigningMethodHMAC)
-		if !ok {
-			return "", errors.New("Invalid signing method")
-		}
-		return SIGNING_KEY, nil
-	})
-	if err != nil || !parsed_token.Valid {
-		log.Printf(err.Error())
-		return nil, errors.New("Invalid JWT")
-	}
-
-	claims, ok := parsed_token.Claims.(jwt.MapClaims)
-	if !ok {
-		return nil, errors.New("Missing Claims")
-	}
-	return claims, nil
 }

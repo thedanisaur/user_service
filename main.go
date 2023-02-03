@@ -35,7 +35,8 @@ func main() {
 			, User-Agent
 			, Content-Type
 			, Content-Length
-			, Authorization`,
+			, Authorization
+			, Username`,
 		AllowCredentials: true,
 	}))
 
@@ -51,6 +52,7 @@ func main() {
 	app.Post("/login", handlers.Login)
 
 	// JWT Authentication
+	app.Post("/logout", handlers.Logout)
 	app.Post("/refresh/:username", handlers.RefreshToken)
 	app.Get("/users", handlers.GetUsers)
 	app.Get("/user/:username", handlers.GetUser)

@@ -88,3 +88,25 @@ func Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).SendString(err_string)
 	}
 }
+
+func Logout(c *fiber.Ctx) error {
+	txid := uuid.New()
+	log.Printf("Logout | %s\n", txid.String())
+	username := c.Get("Username")
+	if security.ValidateJWT(c) != nil {
+		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
+	}
+
+	err := security.Logout(c)
+	if err != nil {
+		log.Println(err.Error())
+		err_string := fmt.Sprintf("Unauthorized: %s\n", txid.String())
+		return c.Status(fiber.StatusUnauthorized).SendString(err_string)
+	}
+
+	response := fiber.Map{
+		"txid":     txid.String(),
+		"username": username,
+	}
+	return c.Status(fiber.StatusOK).JSON(response)
+}
