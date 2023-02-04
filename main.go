@@ -5,6 +5,7 @@ import (
 	"time"
 	"user_service/db"
 	"user_service/handlers"
+	"user_service/security"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -15,6 +16,7 @@ func main() {
 	log.Println("Starting User Service...")
 	app := fiber.New()
 	defer db.GetInstance().Close()
+	security.GenerateSigningKey()
 
 	// Add CORS
 	app.Use(cors.New(cors.Config{

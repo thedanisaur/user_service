@@ -7,14 +7,14 @@ import (
 	"log"
 	"strings"
 	"time"
+	"user_service/util"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 )
 
-// TODO replace the sample key ya dingus
-var SIGNING_KEY = []byte("samplekey")
+var SIGNING_KEY []byte
 var CURRENT_JWTS = make(map[string]string)
 
 func GenerateJWT(txid uuid.UUID, username string) (string, error) {
@@ -92,6 +92,10 @@ func parseToken(token string) (jwt.MapClaims, error) {
 		return nil, errors.New("Missing Claims")
 	}
 	return claims, nil
+}
+
+func GenerateSigningKey() {
+	SIGNING_KEY = []byte(util.RandomString(64))
 }
 
 func ValidateJWT(c *fiber.Ctx) error {
