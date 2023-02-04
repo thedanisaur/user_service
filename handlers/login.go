@@ -5,6 +5,7 @@ import (
 	"log"
 	"user_service/db"
 	"user_service/security"
+	"user_service/util"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gofiber/fiber/v2"
@@ -12,44 +13,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func RefreshToken(c *fiber.Ctx) error {
-	txid := uuid.New()
-	log.Printf("RefreshToken: %s\n", txid.String())
-	username := c.Get("Username")
-	if security.ValidateJWT(c) != nil {
-		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
-	}
-	token, err := security.GenerateJWT(txid, username)
-	if err != nil {
-		log.Printf("Error generating jwt: %s\n", err.Error())
-		return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Internal Server Error: %s\n", txid.String()))
-	}
-	response := fiber.Map{
-		"txid":     txid.String(),
-		"username": username,
-		"token":    fmt.Sprintf("Bearer %s", token),
-	}
-	return c.Status(fiber.StatusOK).JSON(response)
-}
-
-func Validate(c *fiber.Ctx) error {
-	txid := uuid.New()
-	log.Printf("Validate: %s\n", txid.String())
-	username := c.Get("Username")
-	if security.ValidateJWT(c) != nil {
-		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
-	}
-	response := fiber.Map{
-		"txid":     txid.String(),
-		"username": username,
-		"token":    c.Get(fiber.HeaderAuthorization),
-	}
-	return c.Status(fiber.StatusOK).JSON(response)
-}
-
 func Login(c *fiber.Ctx) error {
 	txid := uuid.New()
-	log.Printf("Login: %s\n", txid.String())
+	log.Printf("%s | %s\n", util.GetFunctionName(Login), txid.String())
 	err_string := fmt.Sprintf("Unauthorized: %s\n", txid.String())
 	username, password, has_auth, err := security.GetBasicAuth(c.Get(fiber.HeaderAuthorization))
 	if has_auth && err == nil {
@@ -91,7 +57,7 @@ func Login(c *fiber.Ctx) error {
 
 func Logout(c *fiber.Ctx) error {
 	txid := uuid.New()
-	log.Printf("Logout | %s\n", txid.String())
+	log.Printf("%s | %s\n", util.GetFunctionName(Logout), txid.String())
 	username := c.Get("Username")
 	if security.ValidateJWT(c) != nil {
 		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
@@ -107,6 +73,41 @@ func Logout(c *fiber.Ctx) error {
 	response := fiber.Map{
 		"txid":     txid.String(),
 		"username": username,
+	}
+	return c.Status(fiber.StatusOK).JSON(response)
+}
+
+func RefreshToken(c *fiber.Ctx) error {
+	txid := uuid.New()
+	log.Printf("%s | %s\n", util.GetFunctionName(RefreshToken), txid.String())
+	username := c.Get("Username")
+	if security.ValidateJWT(c) != nil {
+		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
+	}
+	token, err := security.GenerateJWT(txid, username)
+	if err != nil {
+		log.Printf("Error generating jwt: %s\n", err.Error())
+		return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Internal Server Error: %s\n", txid.String()))
+	}
+	response := fiber.Map{
+		"txid":     txid.String(),
+		"username": username,
+		"token":    fmt.Sprintf("Bearer %s", token),
+	}
+	return c.Status(fiber.StatusOK).JSON(response)
+}
+
+func Validate(c *fiber.Ctx) error {
+	txid := uuid.New()
+	log.Printf("%s | %s\n", util.GetFunctionName(Validate), txid.String())
+	username := c.Get("Username")
+	if security.ValidateJWT(c) != nil {
+		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
+	}
+	response := fiber.Map{
+		"txid":     txid.String(),
+		"username": username,
+		"token":    c.Get(fiber.HeaderAuthorization),
 	}
 	return c.Status(fiber.StatusOK).JSON(response)
 }

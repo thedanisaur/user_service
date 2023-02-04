@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// TODO replace the sample key ya dingus
 var SIGNING_KEY = []byte("samplekey")
 var CURRENT_JWTS = make(map[string]string)
 
@@ -24,7 +25,6 @@ func GenerateJWT(txid uuid.UUID, username string) (string, error) {
 	claims["iss"] = txid
 	// TODO tie to user agent as well
 	claims["user"] = username
-	// TODO replace the sample key ya dingus
 	signed_token, err := token.SignedString(SIGNING_KEY)
 	if err != nil {
 		return "", err
@@ -66,8 +66,6 @@ func Logout(c *fiber.Ctx) error {
 	if !ok {
 		return errors.New(fmt.Sprintf("User not found: %s", username))
 	}
-	log.Printf("User token: %s", token)
-	log.Printf("Sent token: %s", strings.TrimPrefix(c.Get(fiber.HeaderAuthorization), "Bearer "))
 	if token != strings.TrimPrefix(c.Get(fiber.HeaderAuthorization), "Bearer ") {
 		return errors.New("Token sent doesn't match user token")
 	}

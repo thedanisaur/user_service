@@ -10,6 +10,8 @@ curl -i -k -X GET -H "Authorization: <token>" -H "Username: dan" https://localho
 
 curl -i -k -X GET -H "Authorization: <token>" -H "Username: dan" https://localhost:4321/user/dan
 
+curl -i -k -X GET -H "Authorization: Bearer <token>" -H "Username: dan" https://localhost:4321/validate
+
 curl -i -k -X POST https://localhost:4321/login -u "dan:password"
 ```
 
