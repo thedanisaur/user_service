@@ -61,5 +61,5 @@ func main() {
 	app.Post("/refresh/:username", handlers.RefreshToken)
 	app.Post("/user", handlers.CreateUser)
 
-	log.Fatal(app.ListenTLS(":4321", "./certs/cert.crt", "./keys/key.key"))
+	log.Fatal(app.ListenTLS(":4321", "./secrets/cert.crt", "./secrets/key.key"))
 }
