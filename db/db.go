@@ -19,6 +19,7 @@ var lock = &sync.Mutex{}
 
 var database *sql.DB
 
+// TODO move all db logic to db package
 func GetInstance() *sql.DB {
 	if database == nil {
 		lock.Lock()
@@ -52,12 +53,12 @@ func GetInstance() *sql.DB {
 	return database
 }
 
-func readDatabaseEnv() (*types.DBConnEnv, error) {
+func readDatabaseEnv() (*types.DbConfig, error) {
 	username, username_set := os.LookupEnv("MSDBUSERNAME")
 	password, password_set := os.LookupEnv("MSDBPASSWORD")
 	db_name, db_name_set := os.LookupEnv("MSDBNAME")
 	db_driver, db_driver_set := os.LookupEnv("MSDBDRIVER")
-	var db_conn types.DBConnEnv
+	var db_conn types.DbConfig
 	if !username_set || !password_set || !db_name_set || !db_driver_set {
 		json_file, err := os.Open("./secrets/db.env")
 		if err != nil {
@@ -68,7 +69,7 @@ func readDatabaseEnv() (*types.DBConnEnv, error) {
 		bytes, _ := ioutil.ReadAll(json_file)
 		json.Unmarshal(bytes, &db_conn)
 	} else {
-		db_conn = types.DBConnEnv{
+		db_conn = types.DbConfig{
 			Username: username,
 			Password: password,
 			Name:     db_name,
