@@ -32,7 +32,7 @@ func Login(c *fiber.Ctx) error {
 		`
 		row := database.QueryRow(query_string, username)
 		var user_password string
-		err := row.Scan(&user_password)
+		err = row.Scan(&user_password)
 		if err != nil {
 			log.Printf("Invalid username: %s\n", err.Error())
 			return c.Status(fiber.StatusUnauthorized).SendString(err_string)

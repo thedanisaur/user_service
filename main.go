@@ -75,7 +75,7 @@ func main() {
 	app.Post("/user", handlers.CreateUser)
 
 	port := fmt.Sprintf(":%d", config.App.Host.Port)
-	err := app.ListenTLS(port, config.App.Host.CertificatePath, config.App.Host.KeyPath)
+	err = app.ListenTLS(port, config.App.Host.CertificatePath, config.App.Host.KeyPath)
 	if err != nil {
 		log.Fatal(err.Error())
 	}

@@ -85,7 +85,7 @@ func GetUser(c *fiber.Ctx) error {
 	`
 	row := database.QueryRow(query_string, username)
 	var user types.User
-	err := row.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedOn)
+	err = row.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedOn)
 	if err != nil {
 		log.Printf("Database Error:\n%s\n", err.Error())
 		err_string := fmt.Sprintf("Database Error: %s\n", txid.String())
