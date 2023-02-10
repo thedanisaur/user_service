@@ -33,7 +33,12 @@ func main() {
 	log.Println("Starting User Service...")
 	config := loadConfig("./config.json")
 	app := fiber.New()
-	defer db.GetInstance().Close()
+	database, err := db.GetInstance()
+	if err != nil {
+		log.Printf(err.Error())
+	} else {
+		defer database.Close()
+	}
 	security.GenerateSigningKey()
 
 	// Add CORS

@@ -20,19 +20,19 @@ var lock = &sync.Mutex{}
 var database *sql.DB
 
 // TODO move all db logic to db package
-func GetInstance() *sql.DB {
+func GetInstance() (*sql.DB, error) {
 	if database == nil {
 		lock.Lock()
 		defer lock.Unlock()
 		if database == nil {
 			env, err := readDatabaseEnv()
 			if err != nil {
-				log.Printf("Connection error: %s", err.Error())
+				return nil, error.New(fmt.Sprintf("Connection error: %s", err.Error())
 			}
 			conn_str := fmt.Sprintf("%s:%s@/%s", env.Username, env.Password, env.Name)
 			db, err := sql.Open(env.Driver, conn_str)
 			if err != nil {
-				log.Println(err)
+				return nil, error.New(fmt.Sprintf("Connection error: %s", err.Error())
 			}
 			// defer db.Close()
 			// See "Important settings" section.
@@ -43,14 +43,14 @@ func GetInstance() *sql.DB {
 			// Open doesn't open a connection. Validate DSN data:
 			err = db.Ping()
 			if err != nil {
-				panic(err.Error()) // proper error handling instead of panic in your app
+				return nil, error.New(fmt.Sprintf("Connection error: %s", err.Error())
 			} else {
 				log.Printf("Connected to: %s", env.Name)
 			}
 			database = db
 		}
 	}
-	return database
+	return database, nil
 }
 
 func readDatabaseEnv() (*types.DbConfig, error) {
