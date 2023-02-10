@@ -27,12 +27,12 @@ func GetInstance() (*sql.DB, error) {
 		if database == nil {
 			env, err := readDatabaseEnv()
 			if err != nil {
-				return nil, error.New(fmt.Sprintf("Connection error: %s", err.Error()))
+				return nil, errors.New(fmt.Sprintf("Connection error: %s", err.Error()))
 			}
 			conn_str := fmt.Sprintf("%s:%s@/%s", env.Username, env.Password, env.Name)
 			db, err := sql.Open(env.Driver, conn_str)
 			if err != nil {
-				return nil, error.New(fmt.Sprintf("Connection error: %s", err.Error()))
+				return nil, errors.New(fmt.Sprintf("Connection error: %s", err.Error()))
 			}
 			// defer db.Close()
 			// See "Important settings" section.
@@ -43,7 +43,7 @@ func GetInstance() (*sql.DB, error) {
 			// Open doesn't open a connection. Validate DSN data:
 			err = db.Ping()
 			if err != nil {
-				return nil, error.New(fmt.Sprintf("Connection error: %s", err.Error()))
+				return nil, errors.New(fmt.Sprintf("Connection error: %s", err.Error()))
 			} else {
 				log.Printf("Connected to: %s", env.Name)
 			}
