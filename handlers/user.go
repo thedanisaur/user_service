@@ -31,7 +31,12 @@ func CreateUser(c *fiber.Ctx) error {
 		err_string := fmt.Sprintf("Internal Server Error: %s\n", txid.String())
 		return c.Status(fiber.StatusInternalServerError).SendString(err_string)
 	}
-	database := db.GetInstance()
+	database, err := db.GetInstance()
+	if err != nil {
+		log.Printf("Failed to connect to DB\n%s\n", err.Error())
+		err_string := fmt.Sprintf("Database Error: %s\n", txid.String())
+		return c.Status(fiber.StatusInternalServerError).SendString(err_string)
+	}
 	query_string := `
 		INSERT INTO people
 		(
@@ -63,7 +68,12 @@ func GetUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
 	}
 	username := c.Params("username")
-	database := db.GetInstance()
+	database, err := db.GetInstance()
+	if err != nil {
+		log.Printf("Failed to connect to DB\n%s\n", err.Error())
+		err_string := fmt.Sprintf("Database Error: %s\n", txid.String())
+		return c.Status(fiber.StatusInternalServerError).SendString(err_string)
+	}
 	query_string := `
 		SELECT BIN_TO_UUID(person_id) person_id
 			, person_username
@@ -92,7 +102,12 @@ func GetUsers(c *fiber.Ctx) error {
 		err_string := fmt.Sprintf("Unauthorized: %s\n", txid.String())
 		return c.Status(fiber.StatusUnauthorized).SendString(err_string)
 	}
-	database := db.GetInstance()
+	database, err := db.GetInstance()
+	if err != nil {
+		log.Printf("Failed to connect to DB\n%s\n", err.Error())
+		err_string := fmt.Sprintf("Database Error: %s\n", txid.String())
+		return c.Status(fiber.StatusInternalServerError).SendString(err_string)
+	}
 	query_string := `
 		SELECT BIN_TO_UUID(person_id) person_id
 			, person_username

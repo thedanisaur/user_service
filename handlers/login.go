@@ -19,7 +19,12 @@ func Login(c *fiber.Ctx) error {
 	err_string := fmt.Sprintf("Unauthorized: %s\n", txid.String())
 	username, password, has_auth, err := security.GetBasicAuth(c.Get(fiber.HeaderAuthorization))
 	if has_auth && err == nil {
-		database := db.GetInstance()
+		database, err := db.GetInstance()
+		if err != nil {
+			log.Printf("Failed to connect to DB\n%s\n", err.Error())
+			err_string := fmt.Sprintf("Database Error: %s\n", txid.String())
+			return c.Status(fiber.StatusInternalServerError).SendString(err_string)
+		}
 		query_string := `
 			SELECT person_password
 			FROM people
