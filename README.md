@@ -19,3 +19,10 @@ curl -i -k -X POST https://localhost:4321/login -u "dan:password"
 ```
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ./secrets/key.key -out ./secrets/cert.crt 
 ```
+
+### Docker
+
+```
+docker build -t ms_user_service .
+docker run -p 4321:4321 -tid ms_user_service
+```

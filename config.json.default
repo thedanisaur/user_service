@@ -4,6 +4,7 @@
     },
     "app": {
         "host": {
+            "use_tls": true,
             "cert_path": "./secrets/cert.crt",
             "key_path": "./secrets/key.key",
             "port": 4321

@@ -15,6 +15,7 @@ type Config struct {
 			CertificatePath string `json:"cert_path"`
 			KeyPath         string `json:"key_path"`
 			Port            int    `json:"port"`
+			UseTLS          bool   `json:"use_tls"`
 		}
 		Cors struct {
 			AllowCredentials bool     `json:"allow_credentials"`
