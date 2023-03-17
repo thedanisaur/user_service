@@ -26,3 +26,13 @@ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ./secrets/key.k
 docker build -t ms_user_service .
 docker run -p 4321:4321 -tid ms_user_service
 ```
+
+### Service
+systemd
+```
+sudo cp user_service.service /lib/systemd/system/.
+sudo chmod 755 /lib/systemd/system/user_service.service
+sudo systemctl daemon-reload
+sudo systemctl enable user_service.service
+sudo systemctl start user_service
+```

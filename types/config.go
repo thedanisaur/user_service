@@ -23,9 +23,9 @@ type Config struct {
 			AllowOrigins     []string `json:"allow_origins"`
 		}
 		Limiter struct {
-			Max                      int  `json:"max_requests"`
 			Expiration               int  `json:"expiration"`
 			LimiterSlidingMiddleware bool `json:"limiter_sliding_middleware"`
+			Max                      int  `json:"max_requests"`
 			SkipSuccessfulRequests   bool `json:"skip_successful_requests"`
 		}
 	}

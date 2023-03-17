@@ -1,3 +1,4 @@
 *.env
 *.key
 Dockerfile
+config.json
