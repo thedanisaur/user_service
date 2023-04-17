@@ -17,7 +17,9 @@ curl -i -k -X POST https://localhost:4321/login -u "dan:password"
 
 ### Create SSL Keys
 ```
-sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ./secrets/key.key -out ./secrets/cert.crt 
+sudo openssl genrsa -out ./secrets/key.key 3072
+sudo openssl rsa -in ./secrets/key.key -pubout -out ./secrets/cert.crt
+sudo openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in ./secrets/key.key -out ./secrets/key8.key
 ```
 
 ### Docker

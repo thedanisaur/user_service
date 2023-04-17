@@ -33,7 +33,7 @@ func main() {
 	log.Println("Starting User Service...")
 	config, err := loadConfig("./config.json")
 	if err != nil {
-		fmt.Printf("Error opening config, cannot continue: %s\n", err.Error())
+		log.Printf("Error opening config, cannot continue: %s\n", err.Error())
 		return
 	}
 	app := fiber.New()
@@ -67,7 +67,8 @@ func main() {
 	}))
 
 	// Basic Authentication
-	app.Post("/login", handlers.Login)
+	app.Post("/login", handlers.Login(config))
+	app.Get("/publickey", handlers.PublicKey(config))
 
 	// JWT Authentication
 	app.Get("/users", handlers.GetUsers)

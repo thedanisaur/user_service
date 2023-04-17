@@ -1,12 +1,20 @@
 package security
 
 import (
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha512"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
+	"user_service/types"
 	"user_service/util"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,11 +25,61 @@ import (
 var SIGNING_KEY []byte
 var CURRENT_JWTS = make(map[string]string)
 
+func decrypt(ciphertext []byte, config types.Config) ([]byte, error) {
+	key_str, err := os.ReadFile(config.App.Host.KeyPath)
+	if err != nil {
+		log.Printf("Error reading key file: %s\n", err.Error())
+		return nil, err
+	}
+	block, _ := pem.Decode([]byte(key_str))
+	parsed_key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		log.Printf("Error parsing key: %s\n", err.Error())
+		return nil, err
+	}
+	private_key := parsed_key.(*rsa.PrivateKey)
+	if err != nil {
+		log.Printf("Error parsing private key: %s\n", err.Error())
+		return nil, err
+	}
+	plaintext, err := private_key.Decrypt(rand.Reader, ciphertext, &rsa.OAEPOptions{Hash: crypto.SHA512})
+	if err != nil {
+		log.Printf("Error decrypting ciphertext: %s\n", err.Error())
+		return nil, err
+	}
+	return plaintext, nil
+}
+
+func encrypt(plaintext []byte, config types.Config) ([]byte, error) {
+	key_str, err := os.ReadFile(config.App.Host.CertificatePath)
+	if err != nil {
+		log.Printf("Error reading cert file: %s\n", err.Error())
+		return nil, err
+	}
+	block, _ := pem.Decode([]byte(key_str))
+	parsed_key, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		log.Printf("Error parsing key: %s\n", err.Error())
+		return nil, err
+	}
+	public_key := parsed_key.(*rsa.PublicKey)
+	if err != nil {
+		log.Printf("Error parsing public key: %s\n", err.Error())
+		return nil, err
+	}
+	ciphertext, err := rsa.EncryptOAEP(sha512.New(), rand.Reader, public_key, plaintext, nil)
+	if err != nil {
+		log.Printf("Error encrypting plaintext: %s\n", err.Error())
+		return nil, err
+	}
+	return ciphertext, nil
+}
+
 func GenerateJWT(txid uuid.UUID, username string) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS512)
 	claims := token.Claims.(jwt.MapClaims)
 	claims["iat"] = time.Now().UTC().Unix()
-	claims["exp"] = time.Now().Add(5 * time.Minute).UTC().Unix()
+	claims["exp"] = time.Now().Add(2 * time.Minute).UTC().Unix()
 	claims["iss"] = txid
 	// TODO tie to user agent as well
 	claims["user"] = username
@@ -36,7 +94,11 @@ func GenerateJWT(txid uuid.UUID, username string) (string, error) {
 	return signed_token, nil
 }
 
-func GetBasicAuth(auth string) (string, string, bool, error) {
+func GenerateSigningKey() {
+	SIGNING_KEY = []byte(util.RandomString(64))
+}
+
+func GetBasicAuth(auth string, config types.Config) (string, string, bool, error) {
 	// Basically copied from gofiber/basicauth/main.go
 	// Check if header is valid
 	if len(auth) > 6 && strings.ToLower(auth[:5]) == "basic" {
@@ -45,8 +107,16 @@ func GetBasicAuth(auth string) (string, string, bool, error) {
 		if err != nil {
 			return "", "", false, err
 		}
-		// Convert to string
 		credentials := string(raw)
+		// First check if we are using TLS
+		if !config.App.Host.UseTLS {
+			// We aren't using TLS so try to decrypt the auth
+			plaintext, err := decrypt([]byte(credentials), config)
+			if err != nil {
+				return "", "", false, err
+			}
+			credentials = string(plaintext)
+		}
 		// Find semicolumn
 		for i := 0; i < len(credentials); i++ {
 			if credentials[i] == ':' {
@@ -92,10 +162,6 @@ func parseToken(token string) (jwt.MapClaims, error) {
 		return nil, errors.New("Missing Claims")
 	}
 	return claims, nil
-}
-
-func GenerateSigningKey() {
-	SIGNING_KEY = []byte(util.RandomString(64))
 }
 
 func ValidateJWT(c *fiber.Ctx) error {
