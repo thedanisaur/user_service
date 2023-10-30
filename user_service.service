@@ -2,6 +2,7 @@
 Description=User Service
 ConditionPathExists=/home/ec2-user/code/user_service
 After=network.target
+StartLimitIntervalSec=60
  
 [Service]
 Type=simple
@@ -11,7 +12,6 @@ LimitNOFILE=1024
 
 Restart=on-failure
 RestartSec=10
-startLimitIntervalSec=60
 
 WorkingDirectory=/home/ec2-user/code/user_service
 ExecStart=/home/ec2-user/code/user_service/main

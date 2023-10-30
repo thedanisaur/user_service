@@ -16,6 +16,14 @@ curl -i -k -X POST https://localhost:4321/login -u "dan:password"
 ```
 
 ### Create SSL Keys
+TLS keys
+```
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ./secrets/key.key -out ./secrets/cert.crt 
+sudo chmod 775 ./secrets/cert.crt 
+sudo chmod 775 ./secrets/key.key
+```
+
+http keys
 ```
 sudo openssl genrsa -out ./secrets/key.key 3072
 sudo openssl rsa -in ./secrets/key.key -pubout -out ./secrets/cert.crt
@@ -30,11 +38,26 @@ docker run -p 4321:4321 -tid ms_user_service
 ```
 
 ### Service
-systemd
+setup systemd service
 ```
 sudo cp user_service.service /lib/systemd/system/.
 sudo chmod 755 /lib/systemd/system/user_service.service
 sudo systemctl daemon-reload
 sudo systemctl enable user_service.service
 sudo systemctl start user_service
+```
+
+view logs
+```
+sudo journalctl -u user_service
+```
+
+remove service
+```
+sudo systemctl stop user_service.service
+sudo systemctl disable user_service.service
+sudo rm /etc/systemd/system/user_service.service
+sudo rm /usr/lib/systemd/system/user_service.service
+sudo systemctl daemon-reload
+sudo systemctl reset-failed
 ```
