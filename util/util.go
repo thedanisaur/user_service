@@ -21,7 +21,7 @@ func FormatName(title string) string {
 }
 
 func RandomString(length int) string {
-	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()-_=+[]{}\\|;',./:\",./`~")
+	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*")
 	str := make([]rune, length)
 	for i := range str {
 		value, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
