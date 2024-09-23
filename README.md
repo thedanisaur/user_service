@@ -18,8 +18,8 @@ curl -i -k -X POST https://localhost:4321/login -u "dan:password"
 ### Create SSL Keys
 TLS keys
 ```
-sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ./secrets/key.key -out ./secrets/cert.crt 
-sudo chmod 775 ./secrets/cert.crt 
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ./secrets/key.key -out ./secrets/cert.crt
+sudo chmod 775 ./secrets/cert.crt
 sudo chmod 775 ./secrets/key.key
 ```
 

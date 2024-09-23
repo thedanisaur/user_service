@@ -109,14 +109,15 @@ func GetBasicAuth(auth string, config types.Config) (string, string, bool, error
 		}
 		credentials := string(raw)
 		// First check if we are using TLS
-		if !config.App.Host.UseTLS {
-			// We aren't using TLS so try to decrypt the auth
-			plaintext, err := decrypt([]byte(credentials), config)
-			if err != nil {
-				return "", "", false, err
-			}
-			credentials = string(plaintext)
-		}
+		// TODO [drd] We really don't need this
+		// if !config.App.Host.UseTLS {
+		// 	// We aren't using TLS so try to decrypt the auth
+		// 	plaintext, err := decrypt([]byte(credentials), config)
+		// 	if err != nil {
+		// 		return "", "", false, err
+		// 	}
+		// 	credentials = string(plaintext)
+		// }
 		// Find semicolumn
 		for i := 0; i < len(credentials); i++ {
 			if credentials[i] == ':' {
