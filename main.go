@@ -15,6 +15,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
+	"github.com/google/uuid"
 )
 
 func loadConfig(config_path string) (types.Config, error) {
@@ -31,6 +32,12 @@ func loadConfig(config_path string) (types.Config, error) {
 
 func main() {
 	log.Println("Starting User Service...")
+
+	// Print some UUIDs, just for convenience
+	for i := 0; i < 10; i++ {
+		log.Printf("%s\n", strings.ToUpper(strings.ReplaceAll(uuid.New().String(), "-", "")))
+	}
+
 	config, err := loadConfig("./config.json")
 	if err != nil {
 		log.Printf("Error opening config, cannot continue: %s\n", err.Error())
