@@ -9,3 +9,8 @@ type User struct {
 	Email     string    `json:"email"`
 	CreatedOn string    `json:"created_on"`
 }
+
+type UserUpdatePassword struct {
+	Current  string    `json:"current"`
+	Updated  string    `json:"updated"`
+}

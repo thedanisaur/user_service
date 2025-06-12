@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"user_service/db"
 	"user_service/security"
 	"user_service/types"
@@ -45,7 +46,7 @@ func Login(config types.Config) fiber.Handler {
 				log.Printf("Invalid password: %s\n", err.Error())
 				return c.Status(fiber.StatusUnauthorized).SendString(err_string)
 			}
-			token, err := security.GenerateJWT(txid, username)
+			token, err := security.GenerateJWT(txid, username, config)
 			if err != nil {
 				log.Printf("Error generating jwt: %s\n", err.Error())
 				return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Internal Server Error: %s\n", txid.String()))
@@ -67,12 +68,10 @@ func Login(config types.Config) fiber.Handler {
 func Logout(c *fiber.Ctx) error {
 	txid := uuid.New()
 	log.Printf("%s | %s\n", util.GetFunctionName(Logout), txid.String())
-	username := c.Get("Username")
-	if security.ValidateJWT(c) != nil {
-		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
-	}
 
-	err := security.Logout(c)
+	username := c.Get("Username")
+	token := strings.TrimPrefix(c.Get(fiber.HeaderAuthorization), "Bearer ")
+	err := security.Logout(username, token)
 	if err != nil {
 		log.Println(err.Error())
 		err_string := fmt.Sprintf("Unauthorized: %s\n", txid.String())
@@ -108,33 +107,30 @@ func PublicKey(config types.Config) fiber.Handler {
 	}
 }
 
-func RefreshToken(c *fiber.Ctx) error {
-	txid := uuid.New()
-	log.Printf("%s | %s\n", util.GetFunctionName(RefreshToken), txid.String())
-	username := c.Get("Username")
-	if security.ValidateJWT(c) != nil {
-		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
+// func RefreshToken(c *fiber.Ctx) error {
+func RefreshToken(config types.Config) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		txid := uuid.New()
+		log.Printf("%s | %s\n", util.GetFunctionName(RefreshToken), txid.String())
+		username := c.Get("Username")
+		token, err := security.GenerateJWT(txid, username, config)
+		if err != nil {
+			log.Printf("Error generating jwt: %s\n", err.Error())
+			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Internal Server Error: %s\n", txid.String()))
+		}
+		response := fiber.Map{
+			"txid":     txid.String(),
+			"username": username,
+			"token":    fmt.Sprintf("Bearer %s", token),
+		}
+		return c.Status(fiber.StatusOK).JSON(response)
 	}
-	token, err := security.GenerateJWT(txid, username)
-	if err != nil {
-		log.Printf("Error generating jwt: %s\n", err.Error())
-		return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Internal Server Error: %s\n", txid.String()))
-	}
-	response := fiber.Map{
-		"txid":     txid.String(),
-		"username": username,
-		"token":    fmt.Sprintf("Bearer %s", token),
-	}
-	return c.Status(fiber.StatusOK).JSON(response)
 }
 
 func Validate(c *fiber.Ctx) error {
 	txid := uuid.New()
 	log.Printf("%s | %s\n", util.GetFunctionName(Validate), txid.String())
 	username := c.Get("Username")
-	if security.ValidateJWT(c) != nil {
-		return c.Status(fiber.StatusUnauthorized).SendString(fmt.Sprintf("Unauthorized: %s\n", txid.String()))
-	}
 	response := fiber.Map{
 		"txid":     txid.String(),
 		"username": username,

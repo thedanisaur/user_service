@@ -9,11 +9,13 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
-	"fmt"
+	// "fmt"
 	"log"
 	"os"
 	"strings"
 	"time"
+
+	"user_service/db"
 	"user_service/types"
 	"user_service/util"
 
@@ -23,7 +25,6 @@ import (
 )
 
 var SIGNING_KEY []byte
-var CURRENT_JWTS = make(map[string]string)
 
 func decrypt(ciphertext []byte, config types.Config) ([]byte, error) {
 	key_str, err := os.ReadFile(config.App.Host.KeyPath)
@@ -48,6 +49,26 @@ func decrypt(ciphertext []byte, config types.Config) ([]byte, error) {
 		return nil, err
 	}
 	return plaintext, nil
+}
+
+func deleteJWT(claims jwt.MapClaims) error {
+	database, err := db.GetInstance()
+	if err != nil {
+		log.Printf("Failed to connect to DB\n%s\n", err.Error())
+	}
+
+	issued_string := claims["iss"].(string)
+	issued_uuid, _ := uuid.Parse(issued_string)
+	delete_query := `
+		DELETE FROM sessions
+		WHERE session_issued_uuid = UUID_TO_BIN(?)
+	`
+	_, err = database.Exec(delete_query, issued_uuid)
+	if err != nil {
+		log.Printf("Failed to delete session\n%s\n", err.Error())
+		return err
+	}
+	return nil
 }
 
 func encrypt(plaintext []byte, config types.Config) ([]byte, error) {
@@ -75,11 +96,11 @@ func encrypt(plaintext []byte, config types.Config) ([]byte, error) {
 	return ciphertext, nil
 }
 
-func GenerateJWT(txid uuid.UUID, username string) (string, error) {
+func GenerateJWT(txid uuid.UUID, username string, config types.Config) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS512)
 	claims := token.Claims.(jwt.MapClaims)
 	claims["iat"] = time.Now().UTC().Unix()
-	claims["exp"] = time.Now().Add(2 * time.Minute).UTC().Unix()
+	claims["exp"] = time.Now().Add(time.Duration(config.App.LoginExpirationMs) * time.Millisecond).UTC().Unix()
 	claims["iss"] = txid
 	// TODO tie to user agent as well
 	claims["user"] = username
@@ -89,7 +110,8 @@ func GenerateJWT(txid uuid.UUID, username string) (string, error) {
 	}
 
 	// Store JTW
-	CURRENT_JWTS[username] = signed_token
+	storeJWT(claims, config)
+	log.Printf("token | %s\n", signed_token)
 
 	return signed_token, nil
 }
@@ -131,17 +153,42 @@ func GetBasicAuth(auth string, config types.Config) (string, string, bool, error
 	return "", "", false, errors.New("Invalid header")
 }
 
-func Logout(c *fiber.Ctx) error {
-	username := c.Get("Username")
-	token, ok := CURRENT_JWTS[username]
-	if !ok {
-		return errors.New(fmt.Sprintf("User not found: %s", username))
+func getJWT(issued_uuid uuid.UUID) (jwt.MapClaims, error) {
+	database, err := db.GetInstance()
+	if err != nil {
+		log.Printf("Failed to connect to DB\n%s\n", err.Error())
+		return nil, err
 	}
-	if token != strings.TrimPrefix(c.Get(fiber.HeaderAuthorization), "Bearer ") {
-		return errors.New("Token sent doesn't match user token")
+
+	var session_issued_at time.Time
+	var session_expiration time.Time
+	var session_issued_uuid uuid.UUID
+	var person_username string
+	select_query := `
+		SELECT session_issued_at
+			, session_expiration
+			, BIN_TO_UUID(session_issued_uuid)
+			, person_username
+		FROM sessions
+		WHERE session_issued_uuid = UUID_TO_BIN(?)
+	`
+	err = database.QueryRow(select_query, issued_uuid).Scan(&session_issued_at, &session_expiration, &session_issued_uuid, &person_username)
+	if err != nil {
+		log.Printf("Session not found\n%s\n", err.Error())
+		return nil, err
 	}
-	delete(CURRENT_JWTS, username)
-	return nil
+	claims_dbo := jwt.MapClaims{
+		"exp": float64(session_expiration.Unix()),
+		"iat": float64(session_issued_at.Unix()),
+		"iss": session_issued_uuid,
+		"user": person_username,
+	}
+	return claims_dbo, nil
+}
+
+func Logout(username string, token string) error {
+	claims, _ := parseToken(token)
+	return deleteJWT(claims)
 }
 
 func parseToken(token string) (jwt.MapClaims, error) {
@@ -165,29 +212,116 @@ func parseToken(token string) (jwt.MapClaims, error) {
 	return claims, nil
 }
 
-func ValidateJWT(c *fiber.Ctx) error {
+func storeJWT(claims jwt.MapClaims, config types.Config) error {
+	database, err := db.GetInstance()
+	if err != nil {
+		log.Printf("Failed to connect to DB\n%s\n", err.Error())
+	}
+
+	username := claims["user"].(string)
+	count_query := `SELECT COUNT(*) FROM sessions WHERE person_username = ?`
+	var session_count int
+	err = database.QueryRow(count_query, username).Scan(&session_count)
+	if err != nil {
+		log.Printf("Failed to count sessions\n%s\n", err.Error())
+		return err
+	}
+
+	if session_count >= config.App.MaxSessions {
+		delete_query := `
+			DELETE FROM sessions
+			WHERE session_id = (
+				SELECT session_id FROM (
+					SELECT session_id
+					FROM sessions
+					WHERE person_username = ?
+					ORDER BY session_issued_at ASC
+					LIMIT 1
+				) AS oldest
+			)
+		`
+		_, err = database.Exec(delete_query, username)
+		if err != nil {
+			log.Printf("Failed to delete session\n%s\n", err.Error())
+			return err
+		}
+	}
+
+	insert_query := `
+		INSERT INTO sessions
+		(
+			session_issued_at
+			, session_expiration
+			, session_issued_uuid
+			, person_username
+		) VALUES (?, ?, ?, ?)
+	`
+	issued_at := time.Unix(claims["iat"].(int64), 0).UTC()
+	expiration := time.Unix(claims["exp"].(int64), 0).UTC()
+	issued_uuid := claims["iss"].(uuid.UUID)
+	result, err := database.Exec(insert_query, issued_at, expiration, issued_uuid[:], username)
+	if err != nil {
+		log.Printf("Failed user insert\n%s\n", err.Error())
+		return err
+	}
+	_, err = result.LastInsertId()
+	if err != nil {
+		log.Printf("Failed retrieve inserted id\n%s\n", err.Error())
+		return err
+	}
+	return nil
+}
+
+func ValidateJWT(c *fiber.Ctx) (jwt.MapClaims, error) {
 	token := c.Get(fiber.HeaderAuthorization)
-	username := c.Get("Username")
 	if strings.HasPrefix(token, "Bearer ") {
 		passed_claims, err := parseToken(token)
 		if err != nil {
 			log.Printf(err.Error())
-			return errors.New("Failed to parse current token")
+			return nil, errors.New("Failed to parse current token")
 		}
-		existing_claims, err := parseToken(CURRENT_JWTS[username])
+		issued_string := passed_claims["iss"].(string)
+		issued_uuid, _ := uuid.Parse(issued_string)
+		stored_claims, err := getJWT(issued_uuid)
 		if err != nil {
 			log.Printf(err.Error())
-			return errors.New("Failed to parse existing token")
+			return nil, errors.New("Failed to parse stored token")
 		}
 		// Make sure the token is valid
 		if !passed_claims.VerifyExpiresAt(time.Now().UTC().Unix(), true) ||
 			!passed_claims.VerifyIssuedAt(time.Now().UTC().Unix(), true) ||
-			!passed_claims.VerifyIssuer(existing_claims["iss"].(string), true) ||
-			passed_claims["username"] != existing_claims["username"] {
-			return errors.New("Invalid credentials")
+			!passed_claims.VerifyIssuer(stored_claims["iss"].(uuid.UUID).String(), true) ||
+			passed_claims["username"] != stored_claims["username"] {
+			return nil, errors.New("Invalid credentials")
 		}
-	} else {
-		return errors.New("Invalid credentials")
+		return stored_claims, nil
 	}
-	return nil
+	return nil, errors.New("Invalid credentials")
+}
+
+func GetUser(username string) (types.User, error) {
+	txid := uuid.New()
+	log.Printf("GetUser | %s\n", txid.String())
+	database, err := db.GetInstance()
+	if err != nil {
+		log.Printf("Failed to connect to DB\n%s\n", err.Error())
+		return types.User{}, errors.New("Failed to connect to DB")
+	}
+	query_string := `
+		SELECT BIN_TO_UUID(person_id) person_id
+			, person_username
+			, person_password
+			, person_email
+			, person_created_on
+		FROM people
+		WHERE person_username = LOWER(?)
+	`
+	row := database.QueryRow(query_string, username)
+	var user types.User
+	err = row.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedOn)
+	if err != nil {
+		log.Printf("Failed to retrieve user:\n%s\n", err.Error())
+		return types.User{}, errors.New("Failed to retrieve user")
+	}
+	return user, nil
 }
