@@ -29,7 +29,7 @@ func GetInstance() (*sql.DB, error) {
 			if err != nil {
 				return nil, errors.New(fmt.Sprintf("Connection error: %s", err.Error()))
 			}
-			conn_str := fmt.Sprintf("%s:%s@/%s", env.Username, env.Password, env.Name)
+			conn_str := fmt.Sprintf("%s:%s@/%s?parseTime=true", env.Username, env.Password, env.Name)
 			db, err := sql.Open(env.Driver, conn_str)
 			if err != nil {
 				return nil, errors.New(fmt.Sprintf("Connection error: %s", err.Error()))

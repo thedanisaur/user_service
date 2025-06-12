@@ -11,6 +11,8 @@ type Config struct {
 		}
 	}
 	App struct {
+		LoginExpirationMs int `json:"login_expiration_ms"`
+		MaxSessions       int `json:"max_sessions"`
 		Host struct {
 			CertificatePath string `json:"cert_path"`
 			KeyPath         string `json:"key_path"`
