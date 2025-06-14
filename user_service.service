@@ -1,6 +1,6 @@
 [Unit]
 Description=User Service
-ConditionPathExists=/home/ec2-user/code/user_service
+ConditionPathExists=/opt/user_service
 After=network.target
 StartLimitIntervalSec=60
  
@@ -13,8 +13,8 @@ LimitNOFILE=1024
 Restart=on-failure
 RestartSec=10
 
-WorkingDirectory=/home/ec2-user/code/user_service
-ExecStart=/home/ec2-user/code/user_service/main
+WorkingDirectory=/opt/user_service
+ExecStart=/opt/user_service/main
 
 # make sure log directory exists and owned by user
 PermissionsStartOnly=true
