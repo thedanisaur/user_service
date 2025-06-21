@@ -44,25 +44,22 @@ func deleteExpiredUserSessions(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			database, err := db.GetInstance()
-			if err != nil {
-				log.Printf("Failed to connect to DB\n%s\n", err.Error())
-			}
-			log.Printf("Deleting expired sessions")
-			query := `DELETE FROM sessions WHERE session_expiration < UTC_TIMESTAMP()`
-			result, err := database.Exec(query)
-			if err != nil {
-				log.Printf(err.Error())
-			}
-			rows_affected, err := result.RowsAffected()
-			if err != nil {
-				log.Printf(err.Error())
-			}
-			log.Printf("Deleted %d expired sessions\n", rows_affected)
+	for range ticker.C {
+		database, err := db.GetInstance()
+		if err != nil {
+			log.Printf("Failed to connect to DB\n%s\n", err.Error())
 		}
+		log.Printf("Deleting expired sessions")
+		query := `DELETE FROM sessions WHERE session_expiration < UTC_TIMESTAMP()`
+		result, err := database.Exec(query)
+		if err != nil {
+			log.Print(err.Error())
+		}
+		rows_affected, err := result.RowsAffected()
+		if err != nil {
+			log.Print(err.Error())
+		}
+		log.Printf("Deleted %d expired sessions\n", rows_affected)
 	}
 }
 
@@ -88,7 +85,7 @@ func main() {
 	app := fiber.New()
 	database, err := db.GetInstance()
 	if err != nil {
-		log.Printf(err.Error())
+		log.Print(err.Error())
 	} else {
 		defer database.Close()
 	}
